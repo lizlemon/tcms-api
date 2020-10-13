@@ -117,10 +117,12 @@ class TCMS:  # pylint: disable=too-few-public-methods
             return
 
         try:
+            verify = config.get("tcms", "verify", fallback=True) != "False"
             # use password authentication
             TCMS._connection = TCMSXmlrpc(config['tcms']['username'],
                                           config['tcms']['password'],
-                                          config['tcms']['url']).server
+                                          config['tcms']['url'],
+                                          verify).server
         except KeyError:
             raise Exception("username/password required in %s" % self._path)
 

@@ -7,6 +7,7 @@ from http import HTTPStatus
 from http.client import HTTPSConnection
 from xmlrpc.client import SafeTransport, Transport, ServerProxy
 
+import ssl
 import gssapi
 import requests
 
@@ -37,9 +38,29 @@ class CookieTransport(Transport):
         return super().parse_response(response)
 
 
-class SafeCookieTransport(SafeTransport, CookieTransport):
-    """SafeTransport subclass that supports cookies."""
-    scheme = 'https'
+class SafeCookieTransport(SafeTransport):
+    """A SafeTransport (HTTPS) subclass that retains cookies over its lifetime."""
+    user_agent = 'tcms-api/%s' % __version__
+
+    # found this code here:
+    # https://stackoverflow.com/questions/25876503/how-to-retain-cookies-for-xmlrpc-client-in-python-3/47291771
+    # Note context option - it's required for success
+    def __init__(self, context=None, *args, **kwargs):
+        super().__init__(context=context, *args, **kwargs)
+        self._cookies = []
+
+    def send_headers(self, connection, headers):
+        if self._cookies:
+            connection.putheader("Cookie", "; ".join(self._cookies))
+        super().send_headers(connection, headers)
+
+    def parse_response(self, response):
+        # This check is required if in some responses we receive no cookies at all
+        if response.msg.get_all("Set-Cookie"):
+            for header in response.msg.get_all("Set-Cookie"):
+                cookie = header.split(";", 1)[0]
+                self._cookies.append(cookie)
+        return super().parse_response(response)
 
 
 class KerbTransport(SafeCookieTransport):
@@ -99,24 +120,22 @@ class TCMSXmlrpc:
         XML-RPC client for username/password authentication.
     """
     session_cookie_name = 'sessionid'
-    transport = None
 
-    def __init__(self, username, password, url):
-        if self.transport is None:
-            if url.startswith('https://'):
-                self.transport = SafeCookieTransport()
-            elif url.startswith('http://'):
-                self.transport = CookieTransport()
+    def __init__(self, username, password, url, verify=True):
+        server_args = {"verbose": VERBOSE, "allow_none": 1}
+        if url.startswith('https://'):
+            if verify:
+                server_args["transport"] = SafeCookieTransport()
             else:
-                raise Exception("Unrecognized URL scheme")
+                context = ssl._create_unverified_context()
+                server_args["transport"] = SafeCookieTransport(context)
+                server_args["context"] = context
+        elif url.startswith('http://'):
+            server_args["transport"] = CookieTransport()
+        else:
+            raise Exception("Unrecognized URL scheme")
 
-        self.server = ServerProxy(
-            url,
-            transport=self.transport,
-            verbose=VERBOSE,
-            allow_none=1
-        )
-
+        self.server = ServerProxy(url, **server_args)
         self.login(username, password, url)
 
     def login(

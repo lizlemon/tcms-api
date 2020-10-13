@@ -428,7 +428,7 @@ class Backend:  # pylint: disable=too-many-instance-attributes
             :return: None
         """
         self.rpc.TestRun.update(self.run_id, {
-            'stop_date': datetime.now().isoformat().replace('T', ' ')[:19],
+            'stop_date': datetime.now().isoformat().split('T')[0],
         })
 
     def test_case_get_or_create(self, summary):
