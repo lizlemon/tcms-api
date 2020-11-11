@@ -40,6 +40,10 @@ INSTALLATION
 
     pip install tcms-api
 
+If you want to use Kerberos then::
+
+    pip install tcms-api[gssapi]
+
 **WARNING:** on Windows you need to install MIT Kerberos and make sure
 ``C:\Program Files\MIT\Kerberos\bin`` is included in ``%PATH%`` -
 this is usually the case when you install and restart! It must be
@@ -54,6 +58,11 @@ build ``gssapi`` because it doesn't provide binary packages. Try
 
 CHANGELOG
 ---------
+
+v8.6.0 (28 October 2020)
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Use a sub-package to install gssapi, see installation instructions
 
 v8.5.0 (04 August 2020)
 ~~~~~~~~~~~~~~~~~~~~~~~
